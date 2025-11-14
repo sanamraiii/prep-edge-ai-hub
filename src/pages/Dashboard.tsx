@@ -1,9 +1,56 @@
-import { Search, TrendingUp, Users, Target, BookOpen } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Search, TrendingUp, Users, Target, BookOpen, LogOut } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import type { User } from "@supabase/supabase-js";
 
 const Dashboard = () => {
+  const navigate = useNavigate();
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user ?? null);
+        if (!session) {
+          navigate("/login");
+        }
+      }
+    );
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (!session) {
+        navigate("/login");
+      }
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  const handleSignOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Signed out successfully");
+      navigate("/");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
   const stats = [
     { label: "Companies Reviewed", value: "127", icon: Target, color: "text-primary" },
     { label: "Senior Reviews", value: "2.4K", icon: Users, color: "text-secondary" },
@@ -20,6 +67,18 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-navy-light">
       <div className="container mx-auto p-6 space-y-8">
+        {/* Header with Sign Out */}
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold">Dashboard</h1>
+            <p className="text-muted-foreground">Welcome back, {user?.user_metadata?.full_name || user?.email}</p>
+          </div>
+          <Button variant="outline" onClick={handleSignOut}>
+            <LogOut className="mr-2 h-4 w-4" />
+            Sign Out
+          </Button>
+        </div>
+
         {/* Search Section */}
         <Card className="bg-card border-border/50">
           <CardHeader>
